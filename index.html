@@ -72,6 +72,21 @@
                     <input type="text" id="targetLang" class="md-input" value="español" placeholder="Ej: inglés, francés, japonés...">
                 </div>
 
+                <!-- Prompt de Sistema -->
+                <div class="md-input-group">
+                    <label>Tipo de System Prompt</label>
+                    <select id="systemPromptSelect" class="md-select">
+                        <option value="translation">Traducción</option>
+                        <option value="localization">Localización</option>
+                        <option value="custom">Personalizado (escribir)</option>
+                    </select>
+                </div>
+                <div class="md-input-group" id="systemPromptContainer" style="display: none;">
+                    <label>System Prompt</label>
+                    <textarea id="systemPrompt" class="md-textarea" style="min-height: 80px; padding: 8px; font-family: inherit;">Eres un traductor experto. Traduce el texto al {lang} de forma natural y precisa. No expliques nada adicional.</textarea>
+                    <small class="md-helper-text">Usa <code>{lang}</code> para insertar dinámicamente el idioma de salida.</small>
+                </div>
+
 
 
                 <!-- Superposición / Overlap -->

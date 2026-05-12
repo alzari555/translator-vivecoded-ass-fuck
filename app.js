@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', () => {
         modelSelect: document.getElementById('modelSelect'),
         instructionMode: document.getElementById('instructionMode'),
         targetLang: document.getElementById('targetLang'),
+        systemPromptSelect: document.getElementById('systemPromptSelect'),
+        systemPromptContainer: document.getElementById('systemPromptContainer'),
+        systemPrompt: document.getElementById('systemPrompt'),
         
         overlapSize: document.getElementById('overlapSize'),
         overlapValLabel: document.getElementById('overlapValLabel'),
@@ -38,6 +41,19 @@ document.addEventListener('DOMContentLoaded', () => {
     DOM.apiUrl.value = localStorage.getItem('apiUrl') || 'http://localhost:11434/v1';
     DOM.instructionMode.value = localStorage.getItem('instructionMode') || 'chat';
     DOM.targetLang.value = localStorage.getItem('targetLang') || 'español';
+    DOM.systemPromptSelect.value = localStorage.getItem('systemPromptSelect') || 'translation';
+    DOM.systemPrompt.value = localStorage.getItem('systemPrompt') || 'Eres un traductor experto. Traduce el texto al {lang} de forma natural y precisa. No expliques nada adicional.';
+
+    function toggleSystemPrompt() {
+        if (DOM.systemPromptSelect.value === 'custom') {
+            DOM.systemPromptContainer.style.display = 'block';
+        } else {
+            DOM.systemPromptContainer.style.display = 'none';
+        }
+    }
+    
+    DOM.systemPromptSelect.addEventListener('change', toggleSystemPrompt);
+    toggleSystemPrompt();
 
     DOM.overlapSize.value = localStorage.getItem('overlapSize') || 10;
     DOM.overlapValLabel.textContent = DOM.overlapSize.value;
@@ -55,6 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('apiUrl', DOM.apiUrl.value);
         localStorage.setItem('instructionMode', DOM.instructionMode.value);
         localStorage.setItem('targetLang', DOM.targetLang.value.trim());
+        localStorage.setItem('systemPromptSelect', DOM.systemPromptSelect.value);
+        localStorage.setItem('systemPrompt', DOM.systemPrompt.value.trim());
 
         localStorage.setItem('overlapSize', DOM.overlapSize.value);
         localStorage.setItem('maxInputChars', DOM.maxInputChars.value);
@@ -310,7 +328,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const lang = DOM.targetLang.value.trim() || 'español';
-            const sysPrompt = `Eres un traductor experto. Traduce el texto al ${lang} de forma natural y precisa. No expliques nada adicional.`;
+            
+            const presetPrompts = {
+                'translation': 'Eres un traductor experto. Traduce el texto al {lang} de forma natural y precisa. No expliques nada adicional.',
+                'localization': 'Eres un experto en localización. Adapta el texto al {lang} para que suene natural, fluido y culturalmente apropiado en la región destino, como un hablante nativo. No expliques nada adicional.'
+            };
+            
+            let sysPromptTemplate;
+            if (DOM.systemPromptSelect.value === 'custom') {
+                sysPromptTemplate = DOM.systemPrompt.value.trim() || presetPrompts['translation'];
+            } else {
+                sysPromptTemplate = presetPrompts[DOM.systemPromptSelect.value] || presetPrompts['translation'];
+            }
+            
+            const sysPrompt = sysPromptTemplate.replace(/\{lang\}/g, lang);
             
             let reqBody, endpoint;
             
