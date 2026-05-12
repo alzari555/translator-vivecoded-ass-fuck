@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Traductor Material AI</title>
+    <!-- Google Fonts & Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Librerías de Extracción -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+</head>
+<body>
+    <!-- Top App Bar Material Design -->
+    <header class="md-top-app-bar">
+        <div class="md-title">
+            <span class="material-symbols-outlined">translate</span>
+            Traductor Material AI
+        </div>
+        <button class="md-icon-btn" id="settingsBtn" title="Configuración de Backend">
+            <span class="material-symbols-outlined">settings</span>
+        </button>
+    </header>
+
+    <!-- Modal de Configuración -->
+    <div id="settingsDialog" class="md-dialog-backdrop hidden">
+        <div class="md-dialog">
+            <h2 class="md-dialog-title">
+                <span class="material-symbols-outlined">api</span> Backend y Parámetros
+            </h2>
+            <div class="md-dialog-content">
+                
+                <!-- Conexión -->
+                <div class="md-input-group">
+                    <label>URL de la API (Compatible con OpenAI/Kobold)</label>
+                    <div class="md-row">
+                        <input type="text" id="apiUrl" class="md-input" value="http://localhost:11434/v1">
+                        <button id="connectBtn" class="md-btn md-btn-tonal" title="Obtener modelos y límites">
+                            <span class="material-symbols-outlined">sync</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Selección de Modelo -->
+                <div class="md-input-group">
+                    <label>Modelo Dinámico</label>
+                    <select id="modelSelect" class="md-select">
+                        <option value="local-model">Cargando modelos... o escribe manual</option>
+                    </select>
+                </div>
+
+                <!-- Selector de Instrucciones (Presets) -->
+                <div class="md-input-group">
+                    <label>Modo de Instrucción (Presets Kobold Lite)</label>
+                    <select id="instructionMode" class="md-select">
+                        <option value="chat">Auto (Chat Completions)</option>
+                        <option value="chatml">ChatML</option>
+                        <option value="llama3">Llama 3</option>
+                        <option value="alpaca">Alpaca</option>
+                        <option value="vicuna">Vicuna</option>
+                        <option value="gemma">Gemma</option>
+                    </select>
+                </div>
+
+                <!-- Idioma de Salida -->
+                <div class="md-input-group">
+                    <label>Idioma de Salida</label>
+                    <input type="text" id="targetLang" class="md-input" value="español" placeholder="Ej: inglés, francés, japonés...">
+                </div>
+
+
+
+                <!-- Superposición / Overlap -->
+                <div class="md-input-group">
+                    <label>Superposición entre bloques (Cohérencia): <strong id="overlapValLabel">10</strong>%</label>
+                    <input type="range" id="overlapSize" min="0" max="50" step="5" value="10" class="md-slider">
+                    <small class="md-helper-text">Inserta porcentaje del contexto previo en el siguiente bloque al trocear.</small>
+                </div>
+
+                <!-- Filtrado de Razonamiento -->
+                <label class="md-switch-container">
+                    <span class="md-switch-text">Excluir razonamiento (&lt;think&gt;) del resultado final</span>
+                    <div class="md-switch">
+                        <input type="checkbox" id="hideReasoning" checked>
+                        <span class="md-slider-round"></span>
+                    </div>
+                </label>
+                
+            </div>
+            <div class="md-dialog-actions">
+                <button id="closeSettingsBtn" class="md-btn md-btn-text">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Espacio de trabajo -->
+    <main class="md-workspace">
+        
+        <!-- Panel Izquierdo: Entrada -->
+        <div class="md-card">
+            <div class="md-card-content">
+                <div class="md-drop-zone" id="dropZone">
+                    <span class="material-symbols-outlined drop-icon">upload_file</span>
+                    <p>Arrastra tu documento o haz clic</p>
+                    <small>TXT, PDF, DOCX, DOC, RTF</small>
+                    <input type="file" id="fileInput" accept=".txt,.pdf,.docx,.doc,.rtf" class="hidden-input">
+                </div>
+                
+                <textarea id="sourceText" class="md-textarea input-area" placeholder="Escribe o pega aquí el texto a traducir..."></textarea>
+            </div>
+            <div class="md-card-actions">
+                <button id="clearBtn" class="md-btn md-btn-text">
+                    <span class="material-symbols-outlined">delete</span> Limpiar
+                </button>
+                <div style="flex:1"></div>
+                <button id="translateBtn" class="md-btn md-btn-filled">
+                    <span class="material-symbols-outlined">translate</span> Traducir
+                </button>
+            </div>
+        </div>
+
+        <!-- Panel Derecho: Salida -->
+        <div class="md-card">
+            <div class="md-card-header">
+                <h3>Traducción</h3>
+                <div class="header-actions">
+                    <button id="copyBtn" class="md-icon-btn" title="Copiar"><span class="material-symbols-outlined">content_copy</span></button>
+                    <button id="downloadBtn" class="md-icon-btn" title="Descargar"><span class="material-symbols-outlined">download</span></button>
+                </div>
+            </div>
+            <div class="md-card-content relative output-wrapper">
+                
+                <div id="loadingOverlay" class="md-overlay hidden">
+                    <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+                        <div class="md-spinner"></div>
+                        <div id="loadingStatus" class="status-text" style="flex: 1; font-weight: 500;">Procesando...</div>
+                        <button id="cancelBtn" class="md-btn md-btn-text error" style="height: 28px; padding: 0 8px;">Cancelar</button>
+                    </div>
+                    <div class="md-progress-bar-container hidden" id="progressContainer" style="width: 100%; margin-top: 12px;">
+                        <div class="md-progress-bar" id="progressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <textarea id="targetText" class="md-textarea output-area" readonly placeholder="El texto traducido aparecerá aquí..."></textarea>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
