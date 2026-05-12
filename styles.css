@@ -219,7 +219,7 @@ body {
 .md-textarea {
     width: 100%;
     min-height: 200px;
-    max-height: 1000px;
+    max-height: 700px;
     background-color: var(--md-sys-color-surface);
     color: var(--md-sys-color-on-surface);
     border: 1px solid var(--md-sys-color-outline);
