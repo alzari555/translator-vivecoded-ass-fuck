@@ -152,6 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 text = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '');
             }
             DOM.sourceText.value = text;
+            DOM.sourceText.style.height = 'auto';
+            DOM.sourceText.style.height = DOM.sourceText.scrollHeight + 'px';
         } catch (err) {
             alert('Error al leer el archivo: ' + err.message);
             DOM.sourceText.value = '';
@@ -170,6 +172,13 @@ document.addEventListener('DOMContentLoaded', () => {
     DOM.clearBtn.addEventListener('click', () => {
         DOM.sourceText.value = '';
         DOM.targetText.value = '';
+        DOM.sourceText.style.height = 'auto';
+        DOM.targetText.style.height = 'auto';
+    });
+
+    DOM.sourceText.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = this.scrollHeight + 'px';
     });
     DOM.copyBtn.addEventListener('click', () => navigator.clipboard.writeText(DOM.targetText.value));
     DOM.downloadBtn.addEventListener('click', () => {
@@ -336,6 +345,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                     }
                                     
                                     DOM.targetText.value = finalFullTranslation + (finalFullTranslation ? '\n\n' : '') + displayChunk;
+                                    DOM.targetText.style.height = 'auto';
+                                    DOM.targetText.style.height = DOM.targetText.scrollHeight + 'px';
                                     // DOM.targetText.scrollTop = DOM.targetText.scrollHeight;
                                 }
                             } catch (e) { /* ignore parse errors */ }

@@ -102,8 +102,12 @@ body {
     box-shadow: var(--md-elevation-1);
     display: flex;
     flex-direction: column;
-    flex: 1;
-    overflow: hidden;
+}
+
+@media (min-width: 768px) {
+    .md-card {
+        flex: 1;
+    }
 }
 
 .md-card-header {
@@ -214,8 +218,8 @@ body {
 /* Text Areas & Inputs */
 .md-textarea {
     width: 100%;
-    flex: 1;
     min-height: 200px;
+    max-height: 1000px;
     background-color: var(--md-sys-color-surface);
     color: var(--md-sys-color-on-surface);
     border: 1px solid var(--md-sys-color-outline);
@@ -224,6 +228,8 @@ body {
     font-size: 16px;
     resize: none;
     outline: none;
+    overflow-y: auto;
+    field-sizing: content;
 }
 
 .md-textarea:focus {
