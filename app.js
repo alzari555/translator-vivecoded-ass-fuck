@@ -14,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         overlapSize: document.getElementById('overlapSize'),
         overlapValLabel: document.getElementById('overlapValLabel'),
-        hideReasoning: document.getElementById('hideReasoning'),
         
         dropZone: document.getElementById('dropZone'),
         fileInput: document.getElementById('fileInput'),
@@ -42,7 +41,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     DOM.overlapSize.value = localStorage.getItem('overlapSize') || 10;
     DOM.overlapValLabel.textContent = DOM.overlapSize.value;
-    DOM.hideReasoning.checked = localStorage.getItem('hideReasoning') !== 'false';
 
     // UI Listeners
     DOM.settingsBtn.addEventListener('click', () => DOM.settingsDialog.classList.remove('hidden'));
@@ -56,7 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('targetLang', DOM.targetLang.value.trim());
 
         localStorage.setItem('overlapSize', DOM.overlapSize.value);
-        localStorage.setItem('hideReasoning', DOM.hideReasoning.checked);
         localStorage.setItem('selectedModel', DOM.modelSelect.value);
         DOM.settingsDialog.classList.add('hidden');
     }
@@ -229,13 +226,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const model = DOM.modelSelect.value || 'local-model';
         const mode = DOM.instructionMode.value;
         const overlapPct = parseInt(DOM.overlapSize.value);
-        const hideThink = DOM.hideReasoning.checked;
+        const hideThink = true;
 
         // Bloquea el contexto de entrada a 512 tokens (~2048 caracteres) sin importar el backend
         const maxInputChars = 2048;
         
         // El límite de output varía entre 1024 y 2048 dependiendo del overlap
-        const maxOutTokens = Math.floor(1024 + (overlapPct / 50) * 1024);
+        const maxOutTokens = 1024;
 
         const chunks = chunkText(text, maxInputChars);
 
@@ -278,7 +275,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     ],
                     stream: true,
                     temperature: 0.3,
-                    max_tokens: maxOutTokens
+                    max_tokens: maxOutTokens,
+                    reasoning_effort: "low"
                 };
             } else {
                 // Raw Completions for Kobold Lite Presets
@@ -296,7 +294,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     prompt: rawPrompt,
                     stream: true,
                     temperature: 0.3,
-                    max_tokens: maxOutTokens
+                    max_tokens: maxOutTokens,
+                    reasoning_effort: "low"
                 };
             }
 
