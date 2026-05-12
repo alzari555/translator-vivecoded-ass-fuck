@@ -10,10 +10,10 @@ document.addEventListener('DOMContentLoaded', () => {
         instructionMode: document.getElementById('instructionMode'),
         targetLang: document.getElementById('targetLang'),
         
-
-        
         overlapSize: document.getElementById('overlapSize'),
         overlapValLabel: document.getElementById('overlapValLabel'),
+        maxInputChars: document.getElementById('maxInputChars'),
+        maxOutTokens: document.getElementById('maxOutTokens'),
         
         dropZone: document.getElementById('dropZone'),
         fileInput: document.getElementById('fileInput'),
@@ -41,6 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     DOM.overlapSize.value = localStorage.getItem('overlapSize') || 10;
     DOM.overlapValLabel.textContent = DOM.overlapSize.value;
+    
+    DOM.maxInputChars.value = localStorage.getItem('maxInputChars') || 2048;
+    DOM.maxOutTokens.value = localStorage.getItem('maxOutTokens') || 1024;
 
     // UI Listeners
     DOM.settingsBtn.addEventListener('click', () => DOM.settingsDialog.classList.remove('hidden'));
@@ -54,6 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.setItem('targetLang', DOM.targetLang.value.trim());
 
         localStorage.setItem('overlapSize', DOM.overlapSize.value);
+        localStorage.setItem('maxInputChars', DOM.maxInputChars.value);
+        localStorage.setItem('maxOutTokens', DOM.maxOutTokens.value);
         localStorage.setItem('selectedModel', DOM.modelSelect.value);
         DOM.settingsDialog.classList.add('hidden');
     }
@@ -204,8 +209,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (b.length > maxInputChars) {
                     let rem = b;
                     while (rem.length > 0) {
-                        chunks.push(rem.substring(0, maxInputChars));
-                        rem = rem.substring(maxInputChars);
+                        if (rem.length <= maxInputChars) {
+                            chunks.push(rem);
+                            break;
+                        }
+                        
+                        let breakIdx = rem.lastIndexOf(' ', maxInputChars);
+                        if (breakIdx === -1) {
+                            // Hard cut si es una palabra gigantesca
+                            chunks.push(rem.substring(0, maxInputChars));
+                            rem = rem.substring(maxInputChars);
+                        } else {
+                            chunks.push(rem.substring(0, breakIdx));
+                            
+                            // Solapar la última palabra incluida en el chunk anterior
+                            let overlapIdx = rem.lastIndexOf(' ', breakIdx - 1);
+                            if (overlapIdx !== -1 && overlapIdx > 0) {
+                                rem = rem.substring(overlapIdx).trimStart();
+                            } else {
+                                rem = rem.substring(breakIdx).trimStart();
+                            }
+                        }
                     }
                     cur = '';
                 } else {
@@ -228,11 +252,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const overlapPct = parseInt(DOM.overlapSize.value);
         const hideThink = true;
 
-        // Bloquea el contexto de entrada a 512 tokens (~2048 caracteres) sin importar el backend
-        const maxInputChars = 2048;
+        // Limita el contexto de entrada al valor configurado
+        const maxInputChars = parseInt(DOM.maxInputChars.value) || 2048;
         
-        // El límite de output varía entre 1024 y 2048 dependiendo del overlap
-        const maxOutTokens = 1024;
+        // Limita la salida al valor configurado
+        const maxOutTokens = parseInt(DOM.maxOutTokens.value) || 1024;
 
         const chunks = chunkText(text, maxInputChars);
 
@@ -257,6 +281,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Calculate overlap chars = maxInputChars * (overlapPct / 100)
                 const overlapCharsLimit = Math.floor(maxInputChars * (overlapPct / 100));
                 let overlapContext = finalFullTranslation.substring(finalFullTranslation.length - overlapCharsLimit);
+                
+                // Evitar iniciar el contexto con una palabra cortada
+                const firstSpaceIdx = overlapContext.indexOf(' ');
+                if (firstSpaceIdx !== -1 && firstSpaceIdx < overlapContext.length) {
+                    overlapContext = overlapContext.substring(firstSpaceIdx).trimStart();
+                }
+
                 currentInput = `[CONTEXTO PREVIO PARA COHERENCIA]:\n...${overlapContext}\n\n[TRADUCIR EL SIGUIENTE TEXTO]:\n${currentInput}`;
             }
 
