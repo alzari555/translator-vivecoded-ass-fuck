@@ -205,30 +205,48 @@ document.addEventListener('DOMContentLoaded', () => {
             if ((cur.length + b.length) < maxInputChars) {
                 cur += (cur ? '\n\n' : '') + b;
             } else {
-                if (cur) chunks.push(cur);
+                if (cur) chunks.push({ text: cur, separator: chunks.length > 0 ? '\n\n' : '' });
                 if (b.length > maxInputChars) {
                     let rem = b;
+                    let nextSeparator = chunks.length > 0 ? '\n\n' : '';
+                    
                     while (rem.length > 0) {
                         if (rem.length <= maxInputChars) {
-                            chunks.push(rem);
+                            chunks.push({ text: rem, separator: nextSeparator });
                             break;
                         }
+                        let maxIdx = maxInputChars;
+                        // Ventana del 20% del presupuesto final
+                        let windowStart = Math.max(0, Math.floor(maxInputChars * 0.8)); 
+                        let searchArea = rem.substring(windowStart, maxIdx);
                         
-                        let breakIdx = rem.lastIndexOf(' ', maxInputChars);
+                        // Buscar puntuación (. ? ! ; : ,) seguida de espacio
+                        let regex = /[.?!;:,](?=\s)/g;
+                        let matches = [...searchArea.matchAll(regex)];
+                        
+                        let breakIdx = -1;
+                        let isComma = false;
+                        if (matches.length > 0) {
+                            // Cortar justo después del signo de puntuación
+                            let lastMatch = matches[matches.length - 1];
+                            breakIdx = windowStart + lastMatch.index + 1;
+                            if (lastMatch[0] === ',') isComma = true;
+                        } else {
+                            // Fallback: buscar el último espacio normal
+                            breakIdx = rem.lastIndexOf(' ', maxIdx);
+                        }
+
                         if (breakIdx === -1) {
                             // Hard cut si es una palabra gigantesca
-                            chunks.push(rem.substring(0, maxInputChars));
-                            rem = rem.substring(maxInputChars);
+                            chunks.push({ text: rem.substring(0, maxInputChars), separator: nextSeparator });
+                            rem = rem.substring(maxInputChars).trimStart();
+                            nextSeparator = ' ';
                         } else {
-                            chunks.push(rem.substring(0, breakIdx));
-                            
-                            // Solapar la última palabra incluida en el chunk anterior
-                            let overlapIdx = rem.lastIndexOf(' ', breakIdx - 1);
-                            if (overlapIdx !== -1 && overlapIdx > 0) {
-                                rem = rem.substring(overlapIdx).trimStart();
-                            } else {
-                                rem = rem.substring(breakIdx).trimStart();
-                            }
+                            chunks.push({ text: rem.substring(0, breakIdx), separator: nextSeparator });
+                            // Avanzar desde el corte sin repetir la última palabra
+                            rem = rem.substring(breakIdx).trimStart();
+                            // Usar un espacio como separador para la siguiente mitad del bloque, evitando saltos de línea
+                            nextSeparator = ' ';
                         }
                     }
                     cur = '';
@@ -237,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        if (cur) chunks.push(cur);
+        if (cur) chunks.push({ text: cur, separator: chunks.length > 0 ? '\n\n' : '' });
         return chunks;
     }
 
@@ -274,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
             DOM.loadingStatus.textContent = `Traduciendo fragmento ${i + 1} de ${chunks.length}...`;
             DOM.progressBar.style.width = `${((i) / chunks.length) * 100}%`;
 
-            let currentInput = chunks[i];
+            let currentInput = chunks[i].text;
             
             // Add overlap context if N > 0
             if (i > 0 && overlapPct > 0) {
@@ -374,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         displayChunk = displayChunk.replace(/<think>[\s\S]*?(<\/think>|$)/gi, '');
                                     }
                                     
-                                    DOM.targetText.value = finalFullTranslation + (finalFullTranslation ? '\n\n' : '') + displayChunk;
+                                    DOM.targetText.value = finalFullTranslation + chunks[i].separator + displayChunk;
                                     DOM.targetText.style.height = 'auto';
                                     DOM.targetText.style.height = DOM.targetText.scrollHeight + 'px';
                                     // DOM.targetText.scrollTop = DOM.targetText.scrollHeight;
@@ -392,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     finalChunkProcessed = finalChunkProcessed.replace(/<think>[\s\S]*/gi, '');
                 }
 
-                finalFullTranslation += (finalFullTranslation ? '\n\n' : '') + finalChunkProcessed.trim();
+                finalFullTranslation += chunks[i].separator + finalChunkProcessed.trim();
 
             } catch (err) {
                 if (!cancelTranslation) alert(`Error en fragmento ${i+1}: ${err.message}`);
