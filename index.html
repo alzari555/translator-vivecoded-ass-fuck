@@ -13,6 +13,32 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <style>
+        @media (max-width: 500px) {
+            .hide-on-mobile { display: none !important; }
+            .btn-circle-mobile {
+                width: 36px !important;
+                min-width: 36px !important;
+                padding: 0 !important;
+                border-radius: 50% !important;
+                justify-content: center !important;
+            }
+            .select-circle-mobile {
+                width: 36px !important;
+                min-width: 36px !important;
+                padding: 0 !important;
+                border-radius: 50% !important;
+                color: transparent !important;
+                background-position: center right 8px !important;
+            }
+            .slider-wrapper-mobile {
+                padding: 0 8px !important;
+            }
+            .speed-label-mobile {
+                display: none !important;
+            }
+        }
+    </style>
 </head>
 <body>
     <!-- Top App Bar Material Design -->
@@ -202,18 +228,18 @@
                             <span class="material-symbols-outlined" style="font-size: 18px;">stop_circle</span>
                         </button>
                         
-                        <button id="karaokeBtn" class="md-icon-btn" title="Modo Karaoke (Solo al detener generación)" style="width: 36px; height: 36px; background: var(--md-sys-color-surface); border: 1px solid var(--md-sys-color-outline); border-radius: 18px; padding: 0 10px; width: auto; font-size: 12px; font-weight: 500; display: flex; gap: 4px;">
-                            <span class="material-symbols-outlined" id="karaokeIcon" style="font-size: 18px;">subtitles_off</span> Karaoke
+                        <button id="karaokeBtn" class="md-icon-btn btn-circle-mobile" title="Modo Karaoke (Solo al detener generación)" style="width: auto; height: 36px; background: var(--md-sys-color-surface); border: 1px solid var(--md-sys-color-outline); border-radius: 18px; padding: 0 10px; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                            <span class="material-symbols-outlined" id="karaokeIcon" style="font-size: 18px;">subtitles_off</span> <span class="hide-on-mobile">Karaoke</span>
                         </button>
                         
-                        <select id="ttsVoiceSelect" class="md-select" style="width: 120px; padding: 4px 8px; height: 36px; font-size: 13px; margin: 0; border-radius: 18px; border: 1px solid var(--md-sys-color-outline); background-color: var(--md-sys-color-surface);">
+                        <select id="ttsVoiceSelect" class="md-select select-circle-mobile" style="width: 110px; padding: 4px 8px; height: 36px; font-size: 13px; margin: 0; border-radius: 18px; border: 1px solid var(--md-sys-color-outline); background-color: var(--md-sys-color-surface);">
                             <option value="auto">Voz Auto</option>
                         </select>
                         
-                        <div style="display: flex; align-items: center; gap: 8px; flex: 1; background: var(--md-sys-color-surface); padding: 0 12px; border-radius: 18px; border: 1px solid var(--md-sys-color-outline); height: 36px;">
+                        <div class="slider-wrapper-mobile" style="display: flex; align-items: center; gap: 8px; flex: 1; background: var(--md-sys-color-surface); padding: 0 12px; border-radius: 18px; border: 1px solid var(--md-sys-color-outline); height: 36px;">
                             <span class="material-symbols-outlined" style="font-size: 18px; color: var(--md-sys-color-on-surface-variant);">speed</span>
                             <input type="range" id="ttsSpeed" min="0.5" max="2.0" step="0.1" value="1.0" class="md-slider" style="flex: 1; cursor: pointer; margin: 0;">
-                            <span id="ttsSpeedLabel" style="font-size: 13px; font-weight: 500; min-width: 24px; text-align: right; color: var(--md-sys-color-on-surface);">1.0x</span>
+                            <span id="ttsSpeedLabel" class="speed-label-mobile" style="font-size: 13px; font-weight: 500; min-width: 24px; text-align: right; color: var(--md-sys-color-on-surface);">1.0x</span>
                         </div>
                     </div>
                 </div>

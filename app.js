@@ -55,24 +55,45 @@ document.addEventListener('DOMContentLoaded', () => {
     let isSelecting = false;
     let pendingTextUpdate = null;
 
-    DOM.targetText.addEventListener('mousedown', () => isSelecting = true);
-    document.addEventListener('mouseup', (e) => {
+    const startSelecting = () => isSelecting = true;
+
+    const endSelecting = () => {
         if (isSelecting) {
-            isSelecting = false;
-            if (pendingTextUpdate !== null) {
-                updateTargetTextDOM(pendingTextUpdate);
-                pendingTextUpdate = null;
-            }
-            
-            // Si el TTS está reproduciendo, saltar automáticamente a la nueva selección
-            if (isPlayingTTS) {
-                speechSynthesis.cancel();
-                ttsQueue = [];
-                ttsCursor = DOM.targetText.selectionStart;
-                processNewTextForTTS();
-            }
+            // Delay for mobile browsers to update DOM.targetText.selectionStart
+            setTimeout(() => {
+                isSelecting = false;
+                if (pendingTextUpdate !== null) {
+                    updateTargetTextDOM(pendingTextUpdate);
+                    pendingTextUpdate = null;
+                }
+                
+                // Si el TTS está reproduciendo, saltar automáticamente a la nueva selección
+                if (isPlayingTTS) {
+                    speechSynthesis.cancel();
+                    ttsQueue = [];
+                    ttsCursor = DOM.targetText.selectionStart;
+                    processNewTextForTTS();
+                }
+            }, 50);
+        }
+    };
+
+    DOM.targetText.addEventListener('mousedown', startSelecting);
+    DOM.targetText.addEventListener('touchstart', startSelecting, { passive: true });
+    
+    document.addEventListener('mouseup', endSelecting);
+    document.addEventListener('touchend', endSelecting);
+
+    // Salto dinámico si se usan flechas del teclado
+    DOM.targetText.addEventListener('keyup', (e) => {
+        if (isPlayingTTS && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+            speechSynthesis.cancel();
+            ttsQueue = [];
+            ttsCursor = DOM.targetText.selectionStart;
+            processNewTextForTTS();
         }
     });
+
     // Si la ventana pierde el foco, soltamos el estado
     window.addEventListener('blur', () => {
         if (isSelecting) {
