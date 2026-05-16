@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
         saveProfileBtn: document.getElementById('saveProfileBtn'),
         deleteProfileBtn: document.getElementById('deleteProfileBtn'),
         modelSelect: document.getElementById('modelSelect'),
+        instructionMode: document.getElementById('instructionMode'),
         targetLang: document.getElementById('targetLang'),
         systemPromptSelect: document.getElementById('systemPromptSelect'),
         systemPromptContainer: document.getElementById('systemPromptContainer'),
@@ -98,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 apiUrl: localStorage.getItem('apiUrl') || 'http://localhost:11434/v1',
                 apiKey: '',
                 apiProviderPreset: 'local',
+                instructionMode: localStorage.getItem('instructionMode') || 'chat',
                 targetLang: localStorage.getItem('targetLang') || 'español',
                 systemPromptSelect: localStorage.getItem('systemPromptSelect') || 'translation',
                 systemPrompt: localStorage.getItem('systemPrompt') || 'Translate the following text into {lang}. Provide only the translation, without any additional explanations, notes, or conversational text.',
@@ -135,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         DOM.apiUrl.value = p.apiUrl || '';
         DOM.apiKey.value = p.apiKey || '';
         DOM.apiProviderPreset.value = p.apiProviderPreset || 'local';
+        DOM.instructionMode.value = p.instructionMode || 'chat';
         DOM.targetLang.value = p.targetLang || 'español';
         DOM.systemPromptSelect.value = p.systemPromptSelect || 'translation';
         DOM.systemPrompt.value = p.systemPrompt || '';
@@ -165,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
             apiUrl: DOM.apiUrl.value,
             apiKey: DOM.apiKey.value,
             apiProviderPreset: DOM.apiProviderPreset.value,
+            instructionMode: DOM.instructionMode.value,
             targetLang: DOM.targetLang.value.trim(),
             systemPromptSelect: DOM.systemPromptSelect.value,
             systemPrompt: DOM.systemPrompt.value.trim(),
@@ -579,6 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const base = DOM.apiUrl.value.replace(/\/+$/, '');
         const model = DOM.modelSelect.value || 'local-model';
+        const mode = DOM.instructionMode.value;
         const overlapPct = parseInt(DOM.overlapSize.value);
         const hideThink = true;
 
@@ -638,18 +643,41 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const sysPrompt = sysPromptTemplate.replace(/\{lang\}/g, lang);
             
-            const endpoint = `${base}/chat/completions`;
-            const reqBody = {
-                model: model,
-                messages: [
-                    { role: 'system', content: sysPrompt },
-                    { role: 'user', content: currentInput }
-                ],
-                stream: true,
-                temperature: 0.3,
-                max_tokens: maxOutTokens,
-                reasoning_effort: "low"
-            };
+            let reqBody, endpoint;
+            
+            if (mode === 'chat') {
+                endpoint = `${base}/chat/completions`;
+                reqBody = {
+                    model: model,
+                    messages: [
+                        { role: 'system', content: sysPrompt },
+                        { role: 'user', content: currentInput }
+                    ],
+                    stream: true,
+                    temperature: 0.3,
+                    max_tokens: maxOutTokens,
+                    reasoning_effort: "low"
+                };
+            } else {
+                // Raw Completions for Kobold Lite Presets
+                endpoint = `${base}/completions`;
+                let rawPrompt = '';
+                switch(mode) {
+                    case 'chatml': rawPrompt = `<|im_start|>system\n${sysPrompt}<|im_end|>\n<|im_start|>user\n${currentInput}<|im_end|>\n<|im_start|>assistant\n`; break;
+                    case 'llama3': rawPrompt = `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n${sysPrompt}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n${currentInput}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n`; break;
+                    case 'alpaca': rawPrompt = `${sysPrompt}\n\n### Instruction:\n${currentInput}\n\n### Response:\n`; break;
+                    case 'vicuna': rawPrompt = `SYSTEM: ${sysPrompt}\nUSER: ${currentInput}\nASSISTANT: `; break;
+                    case 'gemma': rawPrompt = `<start_of_turn>user\n${sysPrompt}\n\n${currentInput}<end_of_turn>\n<start_of_turn>model\n`; break;
+                }
+                reqBody = {
+                    model: model,
+                    prompt: rawPrompt,
+                    stream: true,
+                    temperature: 0.3,
+                    max_tokens: maxOutTokens,
+                    reasoning_effort: "low"
+                };
+            }
 
             try {
                 const headers = { 'Content-Type': 'application/json' };

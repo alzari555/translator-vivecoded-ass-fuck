@@ -90,7 +90,18 @@
                     </select>
                 </div>
 
-
+                <!-- Selector de Instrucciones (Presets) -->
+                <div class="md-input-group" style="display: none;">
+                    <label>Modo de Instrucción</label>
+                    <select id="instructionMode" class="md-select">
+                        <option value="chat">Auto (Chat Completions)</option>
+                        <option value="chatml">ChatML</option>
+                        <option value="llama3">Llama 3</option>
+                        <option value="alpaca">Alpaca</option>
+                        <option value="vicuna">Vicuna</option>
+                        <option value="gemma">Gemma</option>
+                    </select>
+                </div>
 
                 <!-- Idioma de Salida -->
                 <div class="md-input-group">
@@ -124,12 +135,12 @@
 
                 <!-- Límites de Contexto -->
                 <div class="md-row" style="gap: 16px;">
-                    <div class="md-input-group" style="flex: 1;">
-                        <label>Caracteres por bloque</label>
+                    <div class="md-input-group" style="flex: 1; margin: 0;">
+                        <label>Caracteres entrada</label>
                         <input type="number" id="maxInputChars" class="md-input" value="2048" min="100" max="8192">
                     </div>
-                    <div class="md-input-group" style="flex: 1;">
-                        <label>Tokens de salida</label>
+                    <div class="md-input-group" style="flex: 1; margin: 0;">
+                        <label>Tokens salida</label>
                         <input type="number" id="maxOutTokens" class="md-input" value="1024" min="64" max="4096">
                     </div>
                 </div>
@@ -169,30 +180,39 @@
 
         <!-- Panel Derecho: Salida -->
         <div class="md-card">
-            <div class="md-card-header" style="flex-wrap: wrap; gap: 8px;">
-                <h3 style="margin: 0; min-width: max-content;">Traducción</h3>
+            <div class="md-card-content relative output-wrapper" style="display: flex; flex-direction: column; height: 100%;">
                 
-                <div style="display: flex; flex: 1; align-items: center; gap: 8px; background: rgba(var(--md-sys-color-primary-rgb, 103, 80, 164), 0.08); padding: 4px 8px; border-radius: 20px; min-width: 250px;">
-                    <button id="ttsBtn" class="md-icon-btn" title="Escuchar (Selecciona texto)" style="margin:0; flex-shrink: 0;"><span class="material-symbols-outlined">volume_up</span></button>
-                    <button id="ttsStopBtn" class="md-icon-btn hidden" title="Detener lectura" style="margin:0; flex-shrink: 0;"><span class="material-symbols-outlined">stop_circle</span></button>
-                    
-                    <select id="ttsVoiceSelect" class="md-select" style="max-width: 140px; height: 32px; padding: 0 24px 0 8px; font-size: 13px; border: none; background-color: transparent; margin: 0; flex-shrink: 0;" title="Voz">
-                        <option value="auto">Voz Auto</option>
-                    </select>
-                    
-                    <div style="flex: 1; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-left: 1px solid rgba(0,0,0,0.1);">
-                        <input type="range" id="ttsSpeed" min="0.5" max="2.0" step="0.1" value="1.0" class="md-slider" style="flex: 1; margin: 0; min-width: 40px;" title="Velocidad">
-                        <small id="ttsSpeedLabel" style="width: 20px; text-align: right; font-weight: 500; font-size: 13px;">1.0</small>
+                <!-- Panel de Controles (Alineado con el dropZone izquierdo) -->
+                <div class="md-drop-zone" style="cursor: default; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 16px 24px; border-color: rgba(0,0,0,0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <span style="font-weight: 500; color: #555; display: flex; align-items: center; gap: 6px;">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">tune</span> Controles de Salida
+                        </span>
+                        <div class="header-actions" style="margin: 0; display: flex; gap: 4px;">
+                            <button id="copyBtn" class="md-icon-btn" title="Copiar"><span class="material-symbols-outlined">content_copy</span></button>
+                            <button id="downloadBtn" class="md-icon-btn" title="Descargar"><span class="material-symbols-outlined">download</span></button>
+                        </div>
+                    </div>
+
+                    <div class="md-row" style="align-items: center; gap: 8px;">
+                        <button id="ttsBtn" class="md-icon-btn" title="Escuchar" style="width: 36px; height: 36px; background: var(--md-sys-color-surface); border: 1px solid var(--md-sys-color-outline); border-radius: 50%;">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">volume_up</span>
+                        </button>
+                        <button id="ttsStopBtn" class="md-icon-btn hidden" title="Detener" style="width: 36px; height: 36px; background: var(--md-sys-color-error); color: var(--md-sys-color-surface); border-radius: 50%;">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">stop_circle</span>
+                        </button>
+                        
+                        <select id="ttsVoiceSelect" class="md-select" style="width: 140px; padding: 4px 8px; height: 36px; font-size: 13px; margin: 0; border-radius: 18px; border: 1px solid var(--md-sys-color-outline); background-color: var(--md-sys-color-surface);">
+                            <option value="auto">Auto (Idioma)</option>
+                        </select>
+                        
+                        <div style="display: flex; align-items: center; gap: 8px; flex: 1; background: var(--md-sys-color-surface); padding: 0 12px; border-radius: 18px; border: 1px solid var(--md-sys-color-outline); height: 36px;">
+                            <span class="material-symbols-outlined" style="font-size: 18px; color: var(--md-sys-color-on-surface-variant);">speed</span>
+                            <input type="range" id="ttsSpeed" min="0.5" max="2.0" step="0.1" value="1.0" class="md-slider" style="flex: 1; cursor: pointer; margin: 0;">
+                            <span id="ttsSpeedLabel" style="font-size: 13px; font-weight: 500; min-width: 24px; text-align: right; color: var(--md-sys-color-on-surface);">1.0x</span>
+                        </div>
                     </div>
                 </div>
-
-                <div class="header-actions">
-                    <button id="copyBtn" class="md-icon-btn" title="Copiar"><span class="material-symbols-outlined">content_copy</span></button>
-                    <button id="downloadBtn" class="md-icon-btn" title="Descargar"><span class="material-symbols-outlined">download</span></button>
-                </div>
-            </div>
-            <div class="md-card-content relative output-wrapper">
-                
                 <div id="loadingOverlay" class="md-overlay hidden">
                     <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
                         <div class="md-spinner"></div>
