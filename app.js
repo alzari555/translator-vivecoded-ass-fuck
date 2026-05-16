@@ -35,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadBtn: document.getElementById('downloadBtn'),
         ttsBtn: document.getElementById('ttsBtn'),
         ttsStopBtn: document.getElementById('ttsStopBtn'),
+        karaokeBtn: document.getElementById('karaokeBtn'),
+        karaokeIcon: document.getElementById('karaokeIcon'),
         ttsVoiceSelect: document.getElementById('ttsVoiceSelect'),
         ttsSpeed: document.getElementById('ttsSpeed'),
         ttsSpeedLabel: document.getElementById('ttsSpeedLabel'),
@@ -54,12 +56,20 @@ document.addEventListener('DOMContentLoaded', () => {
     let pendingTextUpdate = null;
 
     DOM.targetText.addEventListener('mousedown', () => isSelecting = true);
-    document.addEventListener('mouseup', () => {
+    document.addEventListener('mouseup', (e) => {
         if (isSelecting) {
             isSelecting = false;
             if (pendingTextUpdate !== null) {
                 updateTargetTextDOM(pendingTextUpdate);
                 pendingTextUpdate = null;
+            }
+            
+            // Si el TTS está reproduciendo, saltar automáticamente a la nueva selección
+            if (isPlayingTTS) {
+                speechSynthesis.cancel();
+                ttsQueue = [];
+                ttsCursor = DOM.targetText.selectionStart;
+                processNewTextForTTS();
             }
         }
     });
@@ -405,9 +415,28 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // TTS Logic
-    let ttsQueue = [];
+    let ttsQueue = []; // array of {text, startIndex}
     let isPlayingTTS = false;
     let ttsCursor = 0;
+    let currentUtteranceObj = null;
+    let isKaraokeMode = false;
+
+    DOM.karaokeBtn.addEventListener('click', () => {
+        if (window.translationInProgress) return; // Prevent toggle if generating
+        isKaraokeMode = !isKaraokeMode;
+        if (isKaraokeMode) {
+            DOM.karaokeIcon.textContent = 'subtitles';
+            DOM.karaokeBtn.style.background = 'var(--md-sys-color-primary-container)';
+            DOM.karaokeBtn.style.borderColor = 'var(--md-sys-color-primary)';
+            DOM.karaokeBtn.style.color = 'var(--md-sys-color-on-primary-container)';
+        } else {
+            DOM.karaokeIcon.textContent = 'subtitles_off';
+            DOM.karaokeBtn.style.background = 'var(--md-sys-color-surface)';
+            DOM.karaokeBtn.style.borderColor = 'var(--md-sys-color-outline)';
+            DOM.karaokeBtn.style.color = 'inherit';
+            DOM.targetText.setSelectionRange(0, 0); // Clear highlight just in case
+        }
+    });
 
     function processNewTextForTTS(currentText = DOM.targetText.value) {
         if (!isPlayingTTS) return;
@@ -415,6 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentText.length <= ttsCursor) return;
 
         let textToProcess = currentText.substring(ttsCursor);
+        let localCursor = ttsCursor;
         
         const regex = /[^.!?\n]+[.!?\n]+/g;
         let match;
@@ -422,17 +452,28 @@ document.addEventListener('DOMContentLoaded', () => {
         
         while ((match = regex.exec(textToProcess)) !== null) {
             const sentence = match[0];
-            if (sentence.trim()) {
-                ttsQueue.push(sentence.trim());
+            const trimmedSentence = sentence.trim();
+            if (trimmedSentence) {
+                const trimOffset = sentence.indexOf(trimmedSentence);
+                ttsQueue.push({
+                    text: trimmedSentence,
+                    startIndex: localCursor + match.index + trimOffset
+                });
             }
             lastMatchEnd = regex.lastIndex;
-            ttsCursor += sentence.length;
         }
+        
+        ttsCursor = localCursor + lastMatchEnd;
         
         if (!window.translationInProgress) {
             let remainder = textToProcess.substring(lastMatchEnd);
-            if (remainder.trim()) {
-                ttsQueue.push(remainder.trim());
+            const trimmedRemainder = remainder.trim();
+            if (trimmedRemainder) {
+                const trimOffset = remainder.indexOf(trimmedRemainder);
+                ttsQueue.push({
+                    text: trimmedRemainder,
+                    startIndex: ttsCursor + trimOffset
+                });
                 ttsCursor += remainder.length;
             }
         }
@@ -443,8 +484,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function playNextTTS() {
         if (speechSynthesis.speaking || ttsQueue.length === 0) return;
         
-        const text = ttsQueue.shift();
-        const utterance = new SpeechSynthesisUtterance(text);
+        currentUtteranceObj = ttsQueue.shift();
+        const utterance = new SpeechSynthesisUtterance(currentUtteranceObj.text);
         
         utterance.rate = parseFloat(DOM.ttsSpeed.value) || 1.0;
         
@@ -462,7 +503,28 @@ document.addEventListener('DOMContentLoaded', () => {
             else utterance.lang = 'es-ES'; 
         }
         
+        utterance.onboundary = (event) => {
+            if (event.name === 'word' && currentUtteranceObj) {
+                if (!isKaraokeMode || window.translationInProgress) return; // Skip highlight if karaoke is off or generation is active
+
+                const wordStart = currentUtteranceObj.startIndex + event.charIndex;
+                let wordLength = event.charLength;
+                
+                // Fallback de longitud si el navegador no lo provee
+                if (!wordLength) {
+                    const textAfter = currentUtteranceObj.text.substring(event.charIndex);
+                    const match = textAfter.match(/^[\wáéíóúñÁÉÍÓÚÑ]+/);
+                    wordLength = match ? match[0].length : 1;
+                }
+                
+                if (!isSelecting) {
+                    DOM.targetText.setSelectionRange(wordStart, wordStart + wordLength);
+                }
+            }
+        };
+
         utterance.onend = () => {
+            currentUtteranceObj = null;
             setTimeout(() => {
                 playNextTTS();
                 if (ttsQueue.length === 0 && !window.translationInProgress) {
@@ -473,6 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         utterance.onerror = (e) => {
             console.error("TTS Error", e);
+            currentUtteranceObj = null;
             setTimeout(() => playNextTTS(), 50);
         };
 
@@ -482,7 +545,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function stopTTS() {
         isPlayingTTS = false;
         ttsQueue = [];
+        currentUtteranceObj = null;
         speechSynthesis.cancel();
+        // Limpiar selección solo si karaoke estaba activo para no molestar otros usos
+        if (isKaraokeMode) DOM.targetText.setSelectionRange(0, 0);
         DOM.ttsBtn.classList.remove('hidden');
         DOM.ttsStopBtn.classList.add('hidden');
     }
@@ -597,6 +663,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         cancelTranslation = false;
         window.translationInProgress = true;
+        
+        DOM.karaokeBtn.disabled = true;
+        DOM.karaokeBtn.style.opacity = '0.5';
+
         DOM.targetText.value = '';
         DOM.loadingOverlay.classList.remove('hidden');
         DOM.progressContainer.classList.remove('hidden');
@@ -762,7 +832,11 @@ document.addEventListener('DOMContentLoaded', () => {
         DOM.loadingOverlay.classList.add('hidden');
         DOM.progressContainer.classList.add('hidden');
         DOM.cancelBtn.classList.add('hidden');
+        
         window.translationInProgress = false;
+        DOM.karaokeBtn.disabled = false;
+        DOM.karaokeBtn.style.opacity = '1';
+
         processNewTextForTTS(); // flush remaining
 
         if (!cancelTranslation) {
