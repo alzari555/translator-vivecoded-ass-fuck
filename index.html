@@ -144,6 +144,18 @@
                     <input type="number" id="maxOutTokens" class="md-input" value="1024" min="64" max="4096">
                 </div>
 
+                <!-- Configuración de Voz (TTS) -->
+                <div class="md-input-group" style="margin-top: 16px; border-top: 1px solid rgba(0,0,0,0.1); padding-top: 16px;">
+                    <label>Motor de Voz (TTS)</label>
+                    <select id="ttsVoiceSelect" class="md-select">
+                        <option value="auto">Automático (Según idioma de salida)</option>
+                    </select>
+                </div>
+                <div class="md-input-group">
+                    <label>Velocidad de Voz: <strong id="ttsSpeedLabel">1.0</strong>x</label>
+                    <input type="range" id="ttsSpeed" min="0.5" max="2.0" step="0.1" value="1.0" class="md-slider">
+                </div>
+
             </div>
             <div class="md-dialog-actions">
                 <button id="closeSettingsBtn" class="md-btn md-btn-text">Cerrar</button>

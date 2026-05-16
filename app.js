@@ -35,6 +35,9 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadBtn: document.getElementById('downloadBtn'),
         ttsBtn: document.getElementById('ttsBtn'),
         ttsStopBtn: document.getElementById('ttsStopBtn'),
+        ttsVoiceSelect: document.getElementById('ttsVoiceSelect'),
+        ttsSpeed: document.getElementById('ttsSpeed'),
+        ttsSpeedLabel: document.getElementById('ttsSpeedLabel'),
         
         loadingOverlay: document.getElementById('loadingOverlay'),
         loadingStatus: document.getElementById('loadingStatus'),
@@ -103,7 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 overlapSize: localStorage.getItem('overlapSize') || 10,
                 maxInputChars: localStorage.getItem('maxInputChars') || 2048,
                 maxOutTokens: localStorage.getItem('maxOutTokens') || 1024,
-                selectedModel: localStorage.getItem('selectedModel') || 'local-model'
+                selectedModel: localStorage.getItem('selectedModel') || 'local-model',
+                ttsVoice: 'auto',
+                ttsSpeed: 1.0
             }
         };
         localStorage.setItem('translator_profiles', JSON.stringify(profiles));
@@ -141,6 +146,10 @@ document.addEventListener('DOMContentLoaded', () => {
         DOM.maxInputChars.value = p.maxInputChars || 2048;
         DOM.maxOutTokens.value = p.maxOutTokens || 1024;
         
+        DOM.ttsVoiceSelect.value = p.ttsVoice !== undefined ? p.ttsVoice : 'auto';
+        DOM.ttsSpeed.value = p.ttsSpeed !== undefined ? p.ttsSpeed : 1.0;
+        DOM.ttsSpeedLabel.textContent = parseFloat(DOM.ttsSpeed.value).toFixed(1);
+        
         localStorage.setItem('selectedModel', p.selectedModel || '');
         toggleSystemPrompt();
     }
@@ -166,7 +175,9 @@ document.addEventListener('DOMContentLoaded', () => {
             overlapSize: DOM.overlapSize.value,
             maxInputChars: DOM.maxInputChars.value,
             maxOutTokens: DOM.maxOutTokens.value,
-            selectedModel: DOM.modelSelect.value
+            selectedModel: DOM.modelSelect.value,
+            ttsVoice: DOM.ttsVoiceSelect.value,
+            ttsSpeed: parseFloat(DOM.ttsSpeed.value)
         };
         
         localStorage.setItem('translator_profiles', JSON.stringify(profiles));
@@ -232,6 +243,32 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     DOM.overlapSize.addEventListener('input', (e) => DOM.overlapValLabel.textContent = e.target.value);
+    DOM.ttsSpeed.addEventListener('input', (e) => DOM.ttsSpeedLabel.textContent = parseFloat(e.target.value).toFixed(1));
+
+    // Cargar Voces TTS
+    let availableVoices = [];
+    function populateVoices() {
+        availableVoices = window.speechSynthesis.getVoices();
+        
+        const currentValue = DOM.ttsVoiceSelect.value;
+        DOM.ttsVoiceSelect.innerHTML = '<option value="auto">Automático (Según idioma de salida)</option>';
+        
+        availableVoices.forEach((voice, index) => {
+            const opt = document.createElement('option');
+            opt.value = index;
+            opt.textContent = `${voice.name} (${voice.lang})`;
+            DOM.ttsVoiceSelect.appendChild(opt);
+        });
+
+        if (currentValue && currentValue !== 'auto') {
+            DOM.ttsVoiceSelect.value = currentValue;
+        }
+    }
+
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = populateVoices;
+    }
+    populateVoices();
 
     // Connect & Fetch Models API
     async function syncBackend() {
@@ -409,14 +446,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const text = ttsQueue.shift();
         const utterance = new SpeechSynthesisUtterance(text);
         
-        const targetLangStr = DOM.targetLang.value.toLowerCase();
-        if (targetLangStr.includes('inglés') || targetLangStr.includes('english')) utterance.lang = 'en-US';
-        else if (targetLangStr.includes('francés')) utterance.lang = 'fr-FR';
-        else if (targetLangStr.includes('alemán')) utterance.lang = 'de-DE';
-        else if (targetLangStr.includes('italiano')) utterance.lang = 'it-IT';
-        else if (targetLangStr.includes('portugués')) utterance.lang = 'pt-BR';
-        else if (targetLangStr.includes('japonés')) utterance.lang = 'ja-JP';
-        else utterance.lang = 'es-ES'; 
+        utterance.rate = parseFloat(DOM.ttsSpeed.value) || 1.0;
+        
+        const selectedVoiceIdx = DOM.ttsVoiceSelect.value;
+        if (selectedVoiceIdx !== 'auto' && availableVoices[selectedVoiceIdx]) {
+            utterance.voice = availableVoices[selectedVoiceIdx];
+        } else {
+            const targetLangStr = DOM.targetLang.value.toLowerCase();
+            if (targetLangStr.includes('inglés') || targetLangStr.includes('english')) utterance.lang = 'en-US';
+            else if (targetLangStr.includes('francés')) utterance.lang = 'fr-FR';
+            else if (targetLangStr.includes('alemán')) utterance.lang = 'de-DE';
+            else if (targetLangStr.includes('italiano')) utterance.lang = 'it-IT';
+            else if (targetLangStr.includes('portugués')) utterance.lang = 'pt-BR';
+            else if (targetLangStr.includes('japonés')) utterance.lang = 'ja-JP';
+            else utterance.lang = 'es-ES'; 
+        }
         
         utterance.onend = () => {
             setTimeout(() => {
