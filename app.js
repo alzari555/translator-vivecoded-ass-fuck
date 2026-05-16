@@ -59,22 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const endSelecting = () => {
         if (isSelecting) {
-            // Delay for mobile browsers to update DOM.targetText.selectionStart
-            setTimeout(() => {
-                isSelecting = false;
-                if (pendingTextUpdate !== null) {
-                    updateTargetTextDOM(pendingTextUpdate);
-                    pendingTextUpdate = null;
-                }
-                
-                // Si el TTS está reproduciendo, saltar automáticamente a la nueva selección
-                if (isPlayingTTS) {
-                    speechSynthesis.cancel();
-                    ttsQueue = [];
-                    ttsCursor = DOM.targetText.selectionStart;
-                    processNewTextForTTS();
-                }
-            }, 50);
+            isSelecting = false;
+            if (pendingTextUpdate !== null) {
+                updateTargetTextDOM(pendingTextUpdate);
+                pendingTextUpdate = null;
+            }
         }
     };
 
@@ -84,13 +73,26 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('mouseup', endSelecting);
     document.addEventListener('touchend', endSelecting);
 
+    // Manejar el salto de TTS explícitamente cuando el usuario cambia el cursor (Click o Teclado)
+    const handleTTSJump = () => {
+        // En móviles, el click ocurre después de que el selectionStart se ha actualizado.
+        if (isPlayingTTS && document.activeElement === DOM.targetText) {
+            // Pequeño timeout por si el navegador móvil necesita un milisegundo extra tras el click
+            setTimeout(() => {
+                speechSynthesis.cancel();
+                ttsQueue = [];
+                ttsCursor = DOM.targetText.selectionStart;
+                processNewTextForTTS();
+            }, 10);
+        }
+    };
+
+    DOM.targetText.addEventListener('click', handleTTSJump);
+
     // Salto dinámico si se usan flechas del teclado
     DOM.targetText.addEventListener('keyup', (e) => {
-        if (isPlayingTTS && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
-            speechSynthesis.cancel();
-            ttsQueue = [];
-            ttsCursor = DOM.targetText.selectionStart;
-            processNewTextForTTS();
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+            handleTTSJump();
         }
     });
 
