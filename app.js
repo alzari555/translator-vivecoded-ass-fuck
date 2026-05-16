@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     DOM.instructionMode.value = localStorage.getItem('instructionMode') || 'chat';
     DOM.targetLang.value = localStorage.getItem('targetLang') || 'español';
     DOM.systemPromptSelect.value = localStorage.getItem('systemPromptSelect') || 'translation';
-    DOM.systemPrompt.value = localStorage.getItem('systemPrompt') || 'Eres un traductor experto. Traduce el texto al {lang} de forma natural y precisa. No expliques nada adicional.';
+    DOM.systemPrompt.value = localStorage.getItem('systemPrompt') || 'Translate the following text into {lang}. Provide only the translation, without any additional explanations, notes, or conversational text.';
 
     function toggleSystemPrompt() {
         if (DOM.systemPromptSelect.value === 'custom') {
@@ -330,8 +330,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const lang = DOM.targetLang.value.trim() || 'español';
             
             const presetPrompts = {
-                'translation': 'Eres un traductor experto. Traduce el texto al {lang} de forma natural y precisa. No expliques nada adicional.',
-                'localization': 'Eres un experto en localización. Adapta el texto al {lang} para que suene natural, fluido y culturalmente apropiado en la región destino, como un hablante nativo. No expliques nada adicional.'
+                'translation': 'Translate the following text into {lang}. Provide only the translation, without any additional explanations, notes, or conversational text.',
+                'localization': 'Localize the following text into {lang}. Adapt the text so it sounds natural, fluent, and culturally appropriate for native speakers. Provide only the localized text, without any additional explanations, notes, or conversational text.'
             };
             
             let sysPromptTemplate;
