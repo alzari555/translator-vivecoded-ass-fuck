@@ -33,6 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
         clearBtn: document.getElementById('clearBtn'),
         copyBtn: document.getElementById('copyBtn'),
         downloadBtn: document.getElementById('downloadBtn'),
+        ttsBtn: document.getElementById('ttsBtn'),
+        ttsStopBtn: document.getElementById('ttsStopBtn'),
         
         loadingOverlay: document.getElementById('loadingOverlay'),
         loadingStatus: document.getElementById('loadingStatus'),
@@ -42,6 +44,46 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     let cancelTranslation = false;
+    window.translationInProgress = false;
+
+    // Track text selection
+    let isSelecting = false;
+    let pendingTextUpdate = null;
+
+    DOM.targetText.addEventListener('mousedown', () => isSelecting = true);
+    document.addEventListener('mouseup', () => {
+        if (isSelecting) {
+            isSelecting = false;
+            if (pendingTextUpdate !== null) {
+                updateTargetTextDOM(pendingTextUpdate);
+                pendingTextUpdate = null;
+            }
+        }
+    });
+    // Si la ventana pierde el foco, soltamos el estado
+    window.addEventListener('blur', () => {
+        if (isSelecting) {
+            isSelecting = false;
+            if (pendingTextUpdate !== null) {
+                updateTargetTextDOM(pendingTextUpdate);
+                pendingTextUpdate = null;
+            }
+        }
+    });
+
+    function updateTargetTextDOM(newText) {
+        const start = DOM.targetText.selectionStart;
+        const end = DOM.targetText.selectionEnd;
+        const dir = DOM.targetText.selectionDirection;
+        
+        DOM.targetText.value = newText;
+        DOM.targetText.style.height = 'auto';
+        DOM.targetText.style.height = DOM.targetText.scrollHeight + 'px';
+        
+        if (start !== end) {
+            DOM.targetText.setSelectionRange(start, end, dir);
+        }
+    }
 
     // Profile Management
     let profiles = JSON.parse(localStorage.getItem('translator_profiles'));
@@ -325,7 +367,105 @@ document.addEventListener('DOMContentLoaded', () => {
         a.click();
     });
 
-    DOM.cancelBtn.addEventListener('click', () => { cancelTranslation = true; });
+    // TTS Logic
+    let ttsQueue = [];
+    let isPlayingTTS = false;
+    let ttsCursor = 0;
+
+    function processNewTextForTTS(currentText = DOM.targetText.value) {
+        if (!isPlayingTTS) return;
+        
+        if (currentText.length <= ttsCursor) return;
+
+        let textToProcess = currentText.substring(ttsCursor);
+        
+        const regex = /[^.!?\n]+[.!?\n]+/g;
+        let match;
+        let lastMatchEnd = 0;
+        
+        while ((match = regex.exec(textToProcess)) !== null) {
+            const sentence = match[0];
+            if (sentence.trim()) {
+                ttsQueue.push(sentence.trim());
+            }
+            lastMatchEnd = regex.lastIndex;
+            ttsCursor += sentence.length;
+        }
+        
+        if (!window.translationInProgress) {
+            let remainder = textToProcess.substring(lastMatchEnd);
+            if (remainder.trim()) {
+                ttsQueue.push(remainder.trim());
+                ttsCursor += remainder.length;
+            }
+        }
+        
+        playNextTTS();
+    }
+
+    function playNextTTS() {
+        if (speechSynthesis.speaking || ttsQueue.length === 0) return;
+        
+        const text = ttsQueue.shift();
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        const targetLangStr = DOM.targetLang.value.toLowerCase();
+        if (targetLangStr.includes('inglés') || targetLangStr.includes('english')) utterance.lang = 'en-US';
+        else if (targetLangStr.includes('francés')) utterance.lang = 'fr-FR';
+        else if (targetLangStr.includes('alemán')) utterance.lang = 'de-DE';
+        else if (targetLangStr.includes('italiano')) utterance.lang = 'it-IT';
+        else if (targetLangStr.includes('portugués')) utterance.lang = 'pt-BR';
+        else if (targetLangStr.includes('japonés')) utterance.lang = 'ja-JP';
+        else utterance.lang = 'es-ES'; 
+        
+        utterance.onend = () => {
+            setTimeout(() => {
+                playNextTTS();
+                if (ttsQueue.length === 0 && !window.translationInProgress) {
+                    stopTTS();
+                }
+            }, 50);
+        };
+        
+        utterance.onerror = (e) => {
+            console.error("TTS Error", e);
+            setTimeout(() => playNextTTS(), 50);
+        };
+
+        speechSynthesis.speak(utterance);
+    }
+
+    function stopTTS() {
+        isPlayingTTS = false;
+        ttsQueue = [];
+        speechSynthesis.cancel();
+        DOM.ttsBtn.classList.remove('hidden');
+        DOM.ttsStopBtn.classList.add('hidden');
+    }
+
+    DOM.ttsBtn.addEventListener('click', () => {
+        const fullText = DOM.targetText.value;
+        if (!fullText.trim()) return;
+
+        let startIndex = 0;
+        if (DOM.targetText.selectionStart !== DOM.targetText.selectionEnd) {
+            startIndex = DOM.targetText.selectionStart;
+        }
+
+        ttsCursor = startIndex;
+        ttsQueue = [];
+        isPlayingTTS = true;
+        
+        DOM.ttsBtn.classList.add('hidden');
+        DOM.ttsStopBtn.classList.remove('hidden');
+
+        speechSynthesis.cancel();
+        processNewTextForTTS();
+    });
+
+    DOM.ttsStopBtn.addEventListener('click', stopTTS);
+
+    DOM.cancelBtn.addEventListener('click', () => { cancelTranslation = true; stopTTS(); });
 
     // Chunking Logic
     function chunkText(text, maxInputChars) {
@@ -412,6 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const chunks = chunkText(text, maxInputChars);
 
         cancelTranslation = false;
+        window.translationInProgress = true;
         DOM.targetText.value = '';
         DOM.loadingOverlay.classList.remove('hidden');
         DOM.progressContainer.classList.remove('hidden');
@@ -543,10 +684,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                         displayChunk = displayChunk.replace(/<think>[\s\S]*?(<\/think>|$)/gi, '');
                                     }
                                     
-                                    DOM.targetText.value = finalFullTranslation + chunks[i].separator + displayChunk;
-                                    DOM.targetText.style.height = 'auto';
-                                    DOM.targetText.style.height = DOM.targetText.scrollHeight + 'px';
-                                    // DOM.targetText.scrollTop = DOM.targetText.scrollHeight;
+                                    const newText = finalFullTranslation + chunks[i].separator + displayChunk;
+                                    
+                                    if (isSelecting) {
+                                        pendingTextUpdate = newText;
+                                    } else {
+                                        updateTargetTextDOM(newText);
+                                    }
+                                    
+                                    processNewTextForTTS(newText);
                                 }
                             } catch (e) { /* ignore parse errors */ }
                         }
@@ -572,9 +718,12 @@ document.addEventListener('DOMContentLoaded', () => {
         DOM.loadingOverlay.classList.add('hidden');
         DOM.progressContainer.classList.add('hidden');
         DOM.cancelBtn.classList.add('hidden');
+        window.translationInProgress = false;
+        processNewTextForTTS(); // flush remaining
+
         if (!cancelTranslation) {
             DOM.progressBar.style.width = `100%`;
-            DOM.targetText.value = finalFullTranslation; // Clean final state
+            updateTargetTextDOM(finalFullTranslation); // Clean final state
         }
     });
 });
