@@ -16,6 +16,7 @@
     <style>
         @media (max-width: 500px) {
             .hide-on-mobile { display: none !important; }
+            .mobile-only-icon { display: block !important; }
             .btn-circle-mobile {
                 width: 36px !important;
                 min-width: 36px !important;
@@ -29,7 +30,10 @@
                 padding: 0 !important;
                 border-radius: 50% !important;
                 color: transparent !important;
-                background-position: center right 8px !important;
+                background-color: transparent !important;
+                background-image: none !important;
+                appearance: none !important;
+                -webkit-appearance: none !important;
             }
             .slider-wrapper-mobile {
                 padding: 0 8px !important;
@@ -37,6 +41,9 @@
             .speed-label-mobile {
                 display: none !important;
             }
+        }
+        @media (min-width: 501px) {
+            .mobile-only-icon { display: none !important; }
         }
     </style>
 </head>
@@ -232,9 +239,12 @@
                             <span class="material-symbols-outlined" id="karaokeIcon" style="font-size: 18px;">subtitles_off</span> <span class="hide-on-mobile">Karaoke</span>
                         </button>
                         
-                        <select id="ttsVoiceSelect" class="md-select select-circle-mobile" style="width: 110px; padding: 4px 8px; height: 36px; font-size: 13px; margin: 0; border-radius: 18px; border: 1px solid var(--md-sys-color-outline); background-color: var(--md-sys-color-surface);">
-                            <option value="auto">Voz Auto</option>
-                        </select>
+                        <div style="position: relative; display: flex; align-items: center; justify-content: center;">
+                            <span class="material-symbols-outlined mobile-only-icon" style="position: absolute; font-size: 18px; color: var(--md-sys-color-on-surface-variant); pointer-events: none; z-index: 1;">record_voice_over</span>
+                            <select id="ttsVoiceSelect" class="md-select select-circle-mobile" style="width: 110px; padding: 4px 8px; height: 36px; font-size: 13px; margin: 0; border-radius: 18px; border: 1px solid var(--md-sys-color-outline); background-color: var(--md-sys-color-surface); position: relative; z-index: 2;">
+                                <option value="auto">Voz Auto</option>
+                            </select>
+                        </div>
                         
                         <div class="slider-wrapper-mobile" style="display: flex; align-items: center; gap: 8px; flex: 1; background: var(--md-sys-color-surface); padding: 0 12px; border-radius: 18px; border: 1px solid var(--md-sys-color-outline); height: 36px;">
                             <span class="material-symbols-outlined" style="font-size: 18px; color: var(--md-sys-color-on-surface-variant);">speed</span>
