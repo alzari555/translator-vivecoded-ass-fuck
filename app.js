@@ -6,6 +6,12 @@ document.addEventListener('DOMContentLoaded', () => {
         connectBtn: document.getElementById('connectBtn'),
         
         apiUrl: document.getElementById('apiUrl'),
+        apiKey: document.getElementById('apiKey'),
+        apiProviderPreset: document.getElementById('apiProviderPreset'),
+        profileSelect: document.getElementById('profileSelect'),
+        newProfileName: document.getElementById('newProfileName'),
+        saveProfileBtn: document.getElementById('saveProfileBtn'),
+        deleteProfileBtn: document.getElementById('deleteProfileBtn'),
         modelSelect: document.getElementById('modelSelect'),
         instructionMode: document.getElementById('instructionMode'),
         targetLang: document.getElementById('targetLang'),
@@ -37,12 +43,130 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let cancelTranslation = false;
 
-    // Load Settings
-    DOM.apiUrl.value = localStorage.getItem('apiUrl') || 'http://localhost:11434/v1';
-    DOM.instructionMode.value = localStorage.getItem('instructionMode') || 'chat';
-    DOM.targetLang.value = localStorage.getItem('targetLang') || 'español';
-    DOM.systemPromptSelect.value = localStorage.getItem('systemPromptSelect') || 'translation';
-    DOM.systemPrompt.value = localStorage.getItem('systemPrompt') || 'Translate the following text into {lang}. Provide only the translation, without any additional explanations, notes, or conversational text.';
+    // Profile Management
+    let profiles = JSON.parse(localStorage.getItem('translator_profiles'));
+    
+    // Migrate old settings if profiles don't exist yet
+    if (!profiles) {
+        profiles = {
+            'default': {
+                name: 'Por defecto',
+                apiUrl: localStorage.getItem('apiUrl') || 'http://localhost:11434/v1',
+                apiKey: '',
+                apiProviderPreset: 'local',
+                instructionMode: localStorage.getItem('instructionMode') || 'chat',
+                targetLang: localStorage.getItem('targetLang') || 'español',
+                systemPromptSelect: localStorage.getItem('systemPromptSelect') || 'translation',
+                systemPrompt: localStorage.getItem('systemPrompt') || 'Translate the following text into {lang}. Provide only the translation, without any additional explanations, notes, or conversational text.',
+                overlapSize: localStorage.getItem('overlapSize') || 10,
+                maxInputChars: localStorage.getItem('maxInputChars') || 2048,
+                maxOutTokens: localStorage.getItem('maxOutTokens') || 1024,
+                selectedModel: localStorage.getItem('selectedModel') || 'local-model'
+            }
+        };
+        localStorage.setItem('translator_profiles', JSON.stringify(profiles));
+    }
+    
+    let currentProfileId = localStorage.getItem('current_profile_id') || 'default';
+    if (!profiles[currentProfileId]) currentProfileId = 'default';
+
+    function updateProfileSelect() {
+        DOM.profileSelect.innerHTML = '';
+        for (const [id, prof] of Object.entries(profiles)) {
+            const opt = document.createElement('option');
+            opt.value = id;
+            opt.textContent = prof.name;
+            DOM.profileSelect.appendChild(opt);
+        }
+        DOM.profileSelect.value = currentProfileId;
+    }
+
+    function loadProfile(id) {
+        const p = profiles[id];
+        if (!p) return;
+        currentProfileId = id;
+        localStorage.setItem('current_profile_id', id);
+        
+        DOM.apiUrl.value = p.apiUrl || '';
+        DOM.apiKey.value = p.apiKey || '';
+        DOM.apiProviderPreset.value = p.apiProviderPreset || 'local';
+        DOM.instructionMode.value = p.instructionMode || 'chat';
+        DOM.targetLang.value = p.targetLang || 'español';
+        DOM.systemPromptSelect.value = p.systemPromptSelect || 'translation';
+        DOM.systemPrompt.value = p.systemPrompt || '';
+        DOM.overlapSize.value = p.overlapSize || 10;
+        DOM.overlapValLabel.textContent = DOM.overlapSize.value;
+        DOM.maxInputChars.value = p.maxInputChars || 2048;
+        DOM.maxOutTokens.value = p.maxOutTokens || 1024;
+        
+        localStorage.setItem('selectedModel', p.selectedModel || '');
+        toggleSystemPrompt();
+    }
+
+    function saveCurrentProfile(name) {
+        let id = currentProfileId;
+        if (name) {
+            id = 'prof_' + Date.now();
+            profiles[id] = { name: name };
+            currentProfileId = id;
+            localStorage.setItem('current_profile_id', id);
+        }
+        
+        profiles[id] = {
+            name: profiles[id].name,
+            apiUrl: DOM.apiUrl.value,
+            apiKey: DOM.apiKey.value,
+            apiProviderPreset: DOM.apiProviderPreset.value,
+            instructionMode: DOM.instructionMode.value,
+            targetLang: DOM.targetLang.value.trim(),
+            systemPromptSelect: DOM.systemPromptSelect.value,
+            systemPrompt: DOM.systemPrompt.value.trim(),
+            overlapSize: DOM.overlapSize.value,
+            maxInputChars: DOM.maxInputChars.value,
+            maxOutTokens: DOM.maxOutTokens.value,
+            selectedModel: DOM.modelSelect.value
+        };
+        
+        localStorage.setItem('translator_profiles', JSON.stringify(profiles));
+        updateProfileSelect();
+    }
+
+    // UI Listeners for Profiles
+    DOM.profileSelect.addEventListener('change', (e) => loadProfile(e.target.value));
+    
+    DOM.saveProfileBtn.addEventListener('click', () => {
+        const newName = DOM.newProfileName.value.trim();
+        saveCurrentProfile(newName);
+        DOM.newProfileName.value = '';
+        alert('Perfil guardado correctamente.');
+    });
+    
+    DOM.deleteProfileBtn.addEventListener('click', () => {
+        if (currentProfileId === 'default') {
+            alert('No puedes eliminar el perfil por defecto.');
+            return;
+        }
+        if (confirm(`¿Eliminar el perfil "${profiles[currentProfileId].name}"?`)) {
+            delete profiles[currentProfileId];
+            localStorage.setItem('translator_profiles', JSON.stringify(profiles));
+            currentProfileId = 'default';
+            updateProfileSelect();
+            loadProfile('default');
+        }
+    });
+
+    // Preset Provider Listener
+    DOM.apiProviderPreset.addEventListener('change', (e) => {
+        const presets = {
+            'local': 'http://localhost:11434/v1',
+            'deepseek': 'https://api.deepseek.com/v1',
+            'google': 'https://generativelanguage.googleapis.com/v1beta/openai',
+            'openrouter': 'https://openrouter.ai/api/v1'
+        };
+        if (presets[e.target.value]) {
+            DOM.apiUrl.value = presets[e.target.value];
+        }
+    });
 
     function toggleSystemPrompt() {
         if (DOM.systemPromptSelect.value === 'custom') {
@@ -53,41 +177,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     DOM.systemPromptSelect.addEventListener('change', toggleSystemPrompt);
-    toggleSystemPrompt();
 
-    DOM.overlapSize.value = localStorage.getItem('overlapSize') || 10;
-    DOM.overlapValLabel.textContent = DOM.overlapSize.value;
-    
-    DOM.maxInputChars.value = localStorage.getItem('maxInputChars') || 2048;
-    DOM.maxOutTokens.value = localStorage.getItem('maxOutTokens') || 1024;
+    // Initial load
+    updateProfileSelect();
+    loadProfile(currentProfileId);
 
     // UI Listeners
     DOM.settingsBtn.addEventListener('click', () => DOM.settingsDialog.classList.remove('hidden'));
-    DOM.closeSettingsBtn.addEventListener('click', saveSettings);
+    DOM.closeSettingsBtn.addEventListener('click', () => {
+        saveCurrentProfile();
+        DOM.settingsDialog.classList.add('hidden');
+    });
 
     DOM.overlapSize.addEventListener('input', (e) => DOM.overlapValLabel.textContent = e.target.value);
-
-    function saveSettings() {
-        localStorage.setItem('apiUrl', DOM.apiUrl.value);
-        localStorage.setItem('instructionMode', DOM.instructionMode.value);
-        localStorage.setItem('targetLang', DOM.targetLang.value.trim());
-        localStorage.setItem('systemPromptSelect', DOM.systemPromptSelect.value);
-        localStorage.setItem('systemPrompt', DOM.systemPrompt.value.trim());
-
-        localStorage.setItem('overlapSize', DOM.overlapSize.value);
-        localStorage.setItem('maxInputChars', DOM.maxInputChars.value);
-        localStorage.setItem('maxOutTokens', DOM.maxOutTokens.value);
-        localStorage.setItem('selectedModel', DOM.modelSelect.value);
-        DOM.settingsDialog.classList.add('hidden');
-    }
 
     // Connect & Fetch Models API
     async function syncBackend() {
         const base = DOM.apiUrl.value.replace(/\/+$/, '');
         DOM.connectBtn.innerHTML = '<span class="md-spinner" style="width:20px;height:20px;border-width:2px;margin:0;"></span>';
         
+        const headers = {};
+        if (DOM.apiKey.value.trim()) {
+            headers['Authorization'] = `Bearer ${DOM.apiKey.value.trim()}`;
+        }
+        
         try {
-            const resModels = await fetch(`${base}/models`);
+            const resModels = await fetch(`${base}/models`, { headers });
             const dataModels = await resModels.json();
             
             DOM.modelSelect.innerHTML = '';
@@ -380,9 +495,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (DOM.apiKey.value.trim()) {
+                    headers['Authorization'] = `Bearer ${DOM.apiKey.value.trim()}`;
+                }
+
                 const res = await fetch(endpoint, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: headers,
                     body: JSON.stringify(reqBody)
                 });
 

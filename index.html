@@ -33,7 +33,38 @@
                 <span class="material-symbols-outlined">api</span> Backend y Parámetros
             </h2>
             <div class="md-dialog-content">
-                
+                <!-- Perfiles de Configuración -->
+                <div class="md-input-group" style="background: rgba(var(--md-sys-color-primary-rgb, 103, 80, 164), 0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.1);">
+                    <label style="font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                        <span class="material-symbols-outlined" style="font-size: 18px;">account_circle</span> Perfil de Configuración
+                    </label>
+                    <div class="md-row" style="margin-bottom: 8px;">
+                        <select id="profileSelect" class="md-select" style="flex: 1;">
+                            <option value="default">Por defecto</option>
+                        </select>
+                        <button id="deleteProfileBtn" class="md-btn md-btn-text error" title="Eliminar perfil">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                    </div>
+                    <div class="md-row">
+                        <input type="text" id="newProfileName" class="md-input" placeholder="Nombre para nuevo perfil...">
+                        <button id="saveProfileBtn" class="md-btn md-btn-tonal" title="Guardar perfil actual">
+                            <span class="material-symbols-outlined">save</span> Guardar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Proveedor de API -->
+                <div class="md-input-group" style="margin-top: 16px;">
+                    <label>Proveedor de API</label>
+                    <select id="apiProviderPreset" class="md-select">
+                        <option value="local">Local (Kobold/Ollama/Personalizado)</option>
+                        <option value="deepseek">Deepseek</option>
+                        <option value="google">Google AI Studio</option>
+                        <option value="openrouter">OpenRouter</option>
+                    </select>
+                </div>
+
                 <!-- Conexión -->
                 <div class="md-input-group">
                     <label>URL de la API (Compatible con OpenAI/Kobold)</label>
@@ -43,6 +74,12 @@
                             <span class="material-symbols-outlined">sync</span>
                         </button>
                     </div>
+                </div>
+                
+                <!-- API Key -->
+                <div class="md-input-group">
+                    <label>API Key (Opcional para Local)</label>
+                    <input type="password" id="apiKey" class="md-input" placeholder="sk-...">
                 </div>
 
                 <!-- Selección de Modelo -->
